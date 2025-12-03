@@ -9,13 +9,15 @@ jobs:
 
     steps:
       # ---------------------------------------
-      # 1 — Récupération du dépôt
+      # 1 — Checkout
       # ---------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: sentiment-training-def
 
       # ---------------------------------------
-      # 2 — Installer Python
+      # 2 — Python
       # ---------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -23,7 +25,7 @@ jobs:
           python-version: "3.10"
 
       # ---------------------------------------
-      # 3 — Installer dépendances
+      # 3 — Dependencies
       # ---------------------------------------
       - name: Install dependencies
         run: |
@@ -31,14 +33,14 @@ jobs:
           pip install torch transformers huggingface_hub
 
       # ---------------------------------------
-      # 4 — Exécuter train.py (génère model.pth)
+      # 4 — Train model
       # ---------------------------------------
       - name: Run training script
         run: |
           python train.py
 
       # ---------------------------------------
-      # 5 — Upload vers Hugging Face
+      # 5 — Upload to Hugging Face
       # ---------------------------------------
       - name: Upload model to Hugging Face
         run: |
@@ -48,7 +50,7 @@ jobs:
           api = HfApi()
           HfFolder.save_token("${{ secrets.HF_TOKEN }}")
 
-          repo_id = "jeremyvarin/sentiment-model"   # <-- Vérifie ton nom exact ici
+          repo_id = "jeremyvarin/sentiment-model"
 
           api.upload_file(
               path_or_fileobj="model.pth",
@@ -61,15 +63,22 @@ jobs:
           EOF
 
       # ---------------------------------------
-      # 6 — Commit + push forcé dans GitHub
+      # 6 — Commit + push to sentiment-training-def
       # ---------------------------------------
       - name: Commit and push trained model (force)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
+          # Reset local branch to remote
+          git fetch origin sentiment-training-def
+          git reset --hard origin/sentiment-training-def
+
+          # Add model
           git add model.pth
           git commit -m "Update trained model" || echo "No changes"
-          git pull --rebase || true
-          git push --force
+
+          # Push FORCE to the correct branch
+          git push origin HEAD:sentiment-training-def --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
