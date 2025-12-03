@@ -19,11 +19,28 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install torch transformers
+          pip install torch transformers huggingface_hub
 
       - name: Run training script
         run: |
           python train.py
+
+      - name: Upload model to Hugging Face
+        run: |
+          python - <<EOF
+          from huggingface_hub import HfApi, HfFolder
+          api = HfApi()
+          HfFolder.save_token("${{ secrets.HF_TOKEN }}")
+
+          repo_id = "jeremyvarin/sentiment-model"  # <-- vérifie que c'est bien ton nom HF
+          api.upload_file(
+              path_or_fileobj="model.pth",
+              path_in_repo="model.pth",
+              repo_id=repo_id,
+              repo_type="model",
+          )
+          print("✔ Model uploaded successfully !")
+          EOF
 
       - name: Commit and push trained model
         run: |
@@ -34,4 +51,3 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
