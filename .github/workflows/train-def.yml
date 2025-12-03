@@ -33,8 +33,11 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git pull origin sentiment-training-def --rebase
+          # Reset the repo to the remote state to avoid conflicts
+          git fetch origin sentiment-training-def
+          git reset --hard origin/sentiment-training-def
 
+          # Stage and push the updated model
           git add model.pth
           git commit -m "Update trained model" || echo "No changes"
           git push origin HEAD:sentiment-training-def
