@@ -39,4 +39,3 @@ jobs:
           git add model.pth
           git commit -m "Update trained model" || echo "No changes"
           git push origin HEAD:sentiment-training-def
-
