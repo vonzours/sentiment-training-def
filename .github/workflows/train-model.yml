@@ -8,46 +8,68 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------------------
+      # 1 — Récupération du dépôt
+      # ---------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ---------------------------------------
+      # 2 — Installer Python
+      # ---------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      # ---------------------------------------
+      # 3 — Installer dépendances
+      # ---------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install torch transformers huggingface_hub
 
+      # ---------------------------------------
+      # 4 — Exécuter train.py (génère model.pth)
+      # ---------------------------------------
       - name: Run training script
         run: |
           python train.py
 
+      # ---------------------------------------
+      # 5 — Upload vers Hugging Face
+      # ---------------------------------------
       - name: Upload model to Hugging Face
         run: |
           python - <<EOF
           from huggingface_hub import HfApi, HfFolder
+
           api = HfApi()
           HfFolder.save_token("${{ secrets.HF_TOKEN }}")
 
-          repo_id = "jeremyvarin/sentiment-model"  # <-- vérifie que c'est bien ton nom HF
+          repo_id = "jeremyvarin/sentiment-model"   # <-- Vérifie ton nom exact ici
+
           api.upload_file(
               path_or_fileobj="model.pth",
               path_in_repo="model.pth",
               repo_id=repo_id,
               repo_type="model",
           )
-          print("✔ Model uploaded successfully !")
+
+          print("✔ Model uploaded successfully!")
           EOF
 
-      - name: Commit and push trained model
+      # ---------------------------------------
+      # 6 — Commit + push forcé dans GitHub
+      # ---------------------------------------
+      - name: Commit and push trained model (force)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add model.pth
           git commit -m "Update trained model" || echo "No changes"
-          git push
+          git pull --rebase || true
+          git push --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
