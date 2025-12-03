@@ -1,106 +1,61 @@
-import os
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
 from transformers import AutoTokenizer, AutoModel
-from torch.utils.data import Dataset, DataLoader
+from src.model import LSTMClassifier
 
-########################################################
-# 1 — Mini dataset très simple
-########################################################
+# -------- CONFIG --------
+EPOCHS = 2
+LR = 2e-4
+DEVICE = "cpu"
 
-class SimpleDataset(Dataset):
-    def __init__(self, tokenizer):
-        self.texts = [
-            "I love this movie!",
-            "This product is terrible.",
-            "Amazing experience.",
-            "I hate this."
-        ]
-        self.labels = torch.tensor([1, 0, 1, 0])
+# EXEMPLE minimal dataset (à remplacer par ton vrai dataset)
+texts = [
+    "I love this!", 
+    "This is amazing!", 
+    "I hate this.",
+    "This is terrible."
+]
+labels = [1, 1, 0, 0]
 
-        self.tokens = tokenizer(
-            self.texts,
-            padding=True,
-            truncation=True,
-            max_length=128,
-            return_tensors="pt"
-        )
+# -------- LOAD BERT --------
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+bert = AutoModel.from_pretrained("distilbert-base-uncased").to(DEVICE)
+bert.eval()
 
-    def __len__(self):
-        return len(self.labels)
+# -------- MODEL --------
+model = LSTMClassifier().to(DEVICE)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=LR)
 
-    def __getitem__(self, idx):
-        return {
-            "input_ids": self.tokens["input_ids"][idx],
-            "attention_mask": self.tokens["attention_mask"][idx],
-            "label": self.labels[idx]
-        }
+def get_embeddings(text):
+    tokens = tokenizer(
+        text,
+        truncation=True,
+        padding=True,
+        return_tensors="pt",
+        max_length=128
+    )
+    with torch.no_grad():
+        out = bert(
+            tokens["input_ids"].to(DEVICE),
+            attention_mask=tokens["attention_mask"].to(DEVICE)
+        ).last_hidden_state
+    return out
 
-########################################################
-# 2 — Modèle LSTM simple
-########################################################
+# -------- TRAIN LOOP --------
+for epoch in range(EPOCHS):
+    total_loss = 0
+    for text, label in zip(texts, labels):
+        emb = get_embeddings(text)
+        logits = model(emb)
+        loss = criterion(logits, torch.tensor([label]))
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
 
-class LSTMClassifier(nn.Module):
-    def __init__(self, embedding_dim=768, hidden_dim=128, num_classes=2):
-        super().__init__()
-        self.lstm = nn.LSTM(
-            embedding_dim,
-            hidden_dim,
-            batch_first=True,
-            bidirectional=True
-        )
-        self.fc = nn.Linear(hidden_dim * 2, num_classes)
+    print(f"Epoch {epoch+1}/{EPOCHS} - Loss: {total_loss:.4f}")
 
-    def forward(self, embeddings):
-        lstm_out, _ = self.lstm(embeddings)
-        return self.fc(lstm_out[:, -1, :])
-
-########################################################
-# 3 — Entraînement + sauvegarde
-########################################################
-
-def train():
-    print("➡ Loading BERT...")
-    tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-    bert = AutoModel.from_pretrained("distilbert-base-uncased")
-    bert.eval()
-
-    for p in bert.parameters():
-        p.requires_grad = False
-
-    dataset = SimpleDataset(tokenizer)
-    loader = DataLoader(dataset, batch_size=2, shuffle=True)
-
-    model = LSTMClassifier()
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=2e-5)
-
-    print("➡ Training...")
-    for epoch in range(3):
-        losses = []
-        for batch in loader:
-
-            with torch.no_grad():
-                bert_out = bert(
-                    input_ids=batch["input_ids"],
-                    attention_mask=batch["attention_mask"]
-                ).last_hidden_state
-
-            logits = model(bert_out)
-            loss = criterion(logits, batch["label"])
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            losses.append(loss.item())
-
-        print(f"✔ Epoch {epoch+1}: loss={sum(losses)/len(losses):.4f}")
-
-    print("➡ Saving model...")
-    torch.save(model.state_dict(), "model.pth")
-    print("✔ Model saved successfully!")
-
-if __name__ == "__main__":
-    train()
+# -------- SAVE MODEL --------
+torch.save(model.state_dict(), "model.pth")
+print("Model saved to model.pth")
