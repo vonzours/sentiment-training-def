@@ -25,13 +25,13 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python <<EOF
+          python - << 'EOF'
 from huggingface_hub import HfApi, upload_file
 
 api = HfApi()
 
-repo_id = "jeremyvarin/pp"   # Ton Space
-model_path = "model.pth"     # Le modèle entraîné dans ton repo GitHub
+repo_id = "jeremyvarin/pp"
+model_path = "model.pth"
 
 print("Uploading model to Hugging Face Space:", repo_id)
 
