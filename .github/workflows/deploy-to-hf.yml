@@ -30,14 +30,16 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
 
-          # Clone ton Space
+          # Clone ton Space Hugging Face
           git clone https://huggingface.co/spaces/jeremyvarin/pp space_repo
           cd space_repo
 
-          # Copier le nouveau modèle depuis le repo GitHub
+          # Copier le modèle entraîné
           cp ../model.pth model.pth
 
-          # Commit et push
+          # Ajouter et commit
           git add model.pth
           git commit -m "Update model from GitHub Actions" || echo "No changes"
-          git push https://$HF_TOKEN@huggingface.co/spaces/jeremyvarin/pp HEAD:main
+
+          # Push CORRIGÉ avec authentification complète
+          git push https://$HF_TOKEN:@huggingface.co/spaces/jeremyvarin/pp HEAD:main
