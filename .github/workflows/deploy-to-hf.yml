@@ -26,20 +26,13 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Config Git
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "github-actions"
-
-          # Clone ton Space Hugging Face
-          git clone https://huggingface.co/spaces/jeremyvarin/pp space_repo
+          # Cloner le Space via HuggingFace CLI (méthode 100 % fiable)
+          huggingface-cli repo clone jeremyvarin/pp space_repo --repo-type space --token $HF_TOKEN
           cd space_repo
 
-          # Copier le modèle entraîné
           cp ../model.pth model.pth
 
-          # Ajouter et commit
           git add model.pth
           git commit -m "Update model from GitHub Actions" || echo "No changes"
 
-          # Push CORRIGÉ avec authentification complète
-          git push https://$HF_TOKEN:@huggingface.co/spaces/jeremyvarin/pp HEAD:main
+          git push
