@@ -8,45 +8,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Étape 1 : Récupérer ton dépôt GitHub
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Étape 2 : Installer Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # Étape 3 : Installer HuggingFace + CLI
-      - name: Install huggingface_hub + CLI
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install "huggingface_hub[cli]"
+          pip install huggingface_hub
 
-      # Étape 4 : Déployer le modèle dans ton Space Hugging Face
-      - name: Push model to Hugging Face Space
+      - name: Upload model to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Config Git
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "github-actions"
+          python <<EOF
+from huggingface_hub import HfApi, upload_file
 
-          # Clone TON Space Hugging Face (method HF officielle)
-          huggingface-cli repo clone jeremyvarin/pp space_repo --repo-type space --token $HF_TOKEN
+api = HfApi()
 
-          # Aller dans le Space
-          cd space_repo
+# Ton Space
+repo_id = "jeremyvarin/pp"
+model_path = "model.pth"
 
-          # Copier le modèle fraîchement entraîné depuis ton repo GitHub
-          cp ../model.pth model.pth
+print("Uploading", model_path, "to Space:", repo_id)
 
-          # Commit
-          git add model.pth
-          git commit -m "Update model from GitHub Actions" || echo "No changes"
+upload_file(
+    path_or_fileobj=model_path,
+    path_in_repo="model.pth",        # Où sera stocké ton modèle dans le Space
+    repo_id=repo_id,
+    repo_type="space",
+    token="${HF_TOKEN}"
+)
 
-          # Push vers Hugging Face (auth gérée par HF)
-          git push
+print("Upload completed!")
+EOF
