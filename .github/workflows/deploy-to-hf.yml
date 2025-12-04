@@ -1,0 +1,43 @@
+name: Deploy Model to Hugging Face Space
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install huggingface_hub
+        run: |
+          pip install huggingface_hub
+
+      - name: Push model to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Config Git
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
+          # Clone ton Space
+          git clone https://huggingface.co/spaces/jeremyvarin/pp space_repo
+          cd space_repo
+
+          # Copier le nouveau modèle depuis le repo GitHub
+          cp ../model.pth model.pth
+
+          # Commit et push
+          git add model.pth
+          git commit -m "Update model from GitHub Actions" || echo "No changes"
+          git push https://$HF_TOKEN@huggingface.co/spaces/jeremyvarin/pp HEAD:main
